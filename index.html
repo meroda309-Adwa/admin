@@ -820,7 +820,7 @@ function startClock(){function tick(){document.getElementById('clock').textConte
 function initSocket(){
   try{
     socket=io(API_BASE,{transports:['websocket','polling'],reconnectionAttempts:10});
-    socket.on('connect',function(){setConn(true);socket.emit('join_room',{room:'bingo_main'});});
+    socket.on('connect',function(){setConn(true);socket.emit('join_room',{room:'10'});socket.emit('join_room',{room:'20'});});
     socket.on('disconnect',function(){setConn(false);});
     
     socket.on('game_state_update',function(data){
