@@ -817,55 +817,58 @@ function initApp(){startClock();initSocket();buildBingoBoard('10');buildBingoBoa
 function startClock(){function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-ET',{hour12:false});}tick();setInterval(tick,1000);}
 
 /* ══ SOCKET ══ */
+function gsFor(room){ return String(room) === '20' ? gameState20 : gameState10; }
+
 function initSocket(){
   try{
     socket=io(API_BASE,{transports:['websocket','polling'],reconnectionAttempts:10});
     socket.on('connect',function(){setConn(true);socket.emit('join_room',{room:'10'});socket.emit('join_room',{room:'20'});});
     socket.on('disconnect',function(){setConn(false);});
-    
+
     socket.on('game_state_update',function(data){
-      var room = data.room || '10';
-      var gs = room === '20' ? gameState20 : gameState10;
+      var room = String(data.room || '10');
+      var gs = gsFor(room);
       gs.running=data.game_running;gs.gameId=data.game_id;gs.players=data.total_players||0;
       if(data.called_numbers) data.called_numbers.forEach(function(n){gs.called.add(n);});
       updateGameUI(room);
     });
-    
+
     socket.on('ball_called',function(data){
       if(!data.number)return;
-      var room = data.room || '10';
-      var gs = room === '20' ? gameState20 : gameState10;
+      var room = String(data.room || '10');
+      var gs = gsFor(room);
       gs.called.add(data.number);gs.current=data.number;
       updateGameUI(room);showBallOnBoard(data.number,room);
     });
-    
+
     socket.on('player_joined',function(data){
-      var room = data.room || '10';
-      var gs = room === '20' ? gameState20 : gameState10;
+      var room = String(data.room || '10');
+      var gs = gsFor(room);
       gs.players=data.total_players||gs.players;
       updateGameUI(room);
     });
-    
+
     socket.on('winner_found',function(data){
-      var room = data.room || '10';
-      var gs = room === '20' ? gameState20 : gameState10;
+      var room = String(data.room || '10');
+      var gs = gsFor(room);
       gs.winners.push(data);
       updateGameUI(room);
       renderWinnersList(room);
       toast('🏆 Winner: '+data.winner_name+' — Card #'+data.card_num,'success');
     });
-    
+
     socket.on('game_started',function(data){
-      var room = data.room || '10';
-      var gs = room === '20' ? gameState20 : gameState10;
+      var room = String(data.room || '10');
+      var gs = gsFor(room);
       gs.running=true;gs.gameId=data.game_id;gs.called=new Set();gs.current=null;gs.winners=[];
+      if(data.total_players) gs.players = data.total_players;
       buildBingoBoard(room);updateGameUI(room);
     });
-    
+
     socket.on('countdown_update',function(data){
-      setText('d-countdown', data.seconds + 's');
-      var room = data.room || '10';
-      var gs = room === '20' ? gameState20 : gameState10;
+      setText('d-countdown', (data.time_left!==undefined ? data.time_left : data.seconds)+'s');
+      var room = String(data.room || '10');
+      var gs = gsFor(room);
       gs.gameId=data.game_id;
       updateGameUI(room);
     });
