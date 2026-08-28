@@ -1093,12 +1093,12 @@ async function pauseGame(room){if(!confirm('Pause the current game in Room '+roo
 async function cancelGame(room){if(!confirm('Cancel the current game in Room '+room+'?'))return;await apiFetch('/api/admin/cancel_game',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin:currentUser.username,room:room})});if(socket)socket.emit('admin_cancel_game',{admin:currentUser.username,room:room});clearBoard(room);var gs = room==='20'?gameState20:gameState10;gs.running=false;updateGameUI(room);toast('Game cancelled in Room '+room,'error');addLog('CANCEL_GAME','Room '+room,'running','cancelled');}
 
 /* ══ PROFIT & REVENUE PERIODS ══ */
-function loadProfit(period){
+async function loadProfit(period){
   document.querySelectorAll('#profit-tabs .period-tab').forEach(function(b){b.classList.remove('active');event.target.classList.add('active');});
   var labels = {daily:"Today's Profit", weekly:"This Week's Profit", monthly:"This Month's Profit", yearly:"This Year's Profit"};
   setText('profit-label', labels[period]);
-  // Mock data based on period
-  var val = period==='daily' ? 2400 : period==='weekly' ? 15800 : period==='monthly' ? 62000 : 745000;
+  var data = await apiFetch('/api/admin/profit?period='+period);
+  var val = (data && data.success) ? data.profit : 0;
   setText('gc-profit-val', val + ' Br');
 }
 function loadRevenue(period){
