@@ -1101,11 +1101,12 @@ async function loadProfit(period){
   var val = (data && data.success) ? data.profit : 0;
   setText('gc-profit-val', val + ' Br');
 }
-function loadRevenue(period){
+async function loadRevenue(period){
   document.querySelectorAll('#revenue-tabs .period-tab').forEach(function(b){b.classList.remove('active');event.target.classList.add('active');});
   var labels = {daily:"Today's Revenue", weekly:"This Week's Revenue", monthly:"This Month's Revenue", yearly:"This Year's Revenue"};
   setText('revenue-label', labels[period]);
-  var val = period==='daily' ? 12000 : period==='weekly' ? 79000 : period==='monthly' ? 310000 : 3725000;
+  var data = await apiFetch('/api/admin/revenue?period='+period);
+  var val = (data && data.success) ? data.revenue : 0;
   setText('gh-revenue', val + ' Br');
 }
 
