@@ -397,7 +397,8 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
           <button class="btn btn-ghost" onclick="loadReport('weekly')">Weekly</button>
           <button class="btn btn-ghost" onclick="loadReport('monthly')">Monthly</button>
           <button class="btn btn-ghost" onclick="loadReport('yearly')">Yearly</button>
-          <button class="btn btn-ghost" style="margin-left:auto;" onclick="exportReport()">⬇ Export CSV</button>
+          <button class="btn btn-ghost" style="margin-left:auto;" onclick="loadReport(currentReportPeriod)">↻ Refresh</button>
+          <button class="btn btn-ghost" onclick="exportReport()">⬇ Export CSV</button>
         </div>
         <div class="stats-grid" id="report-stats"></div>
         <div class="table-card">
