@@ -940,7 +940,12 @@ async function initCharts(){
     var hourlyValues = (hourlyData && hourlyData.success) ? hourlyData.chart.values : [0,0,0,0,0,0,0,0,0];
     charts.hourly=new Chart(document.getElementById('chart-hourly'),{type:'line',data:{labels:hourlyLabels,datasets:[{data:hourlyValues,borderColor:'#4fc3f7',tension:.4,fill:true,backgroundColor:'rgba(79,195,247,0.08)'}]},options:cfg});
   }
-  if(!charts.monthly){charts.monthly=new Chart(document.getElementById('chart-monthly'),{type:'bar',data:{labels:months.slice(0,6),datasets:[{data:[8500,12000,9800,14500,11200,16800],backgroundColor:'rgba(179,136,255,0.7)',borderRadius:4}]},options:cfg});}
+  if(!charts.monthly){
+    var monthlyData = await apiFetch('/api/admin/chart/monthly_revenue');
+    var monthlyLabels = (monthlyData && monthlyData.success) ? monthlyData.chart.labels : months.slice(0,6);
+    var monthlyValues = (monthlyData && monthlyData.success) ? monthlyData.chart.values : [0,0,0,0,0,0];
+    charts.monthly=new Chart(document.getElementById('chart-monthly'),{type:'bar',data:{labels:monthlyLabels,datasets:[{data:monthlyValues,backgroundColor:'rgba(179,136,255,0.7)',borderRadius:4}]},options:cfg});
+  }
 }
 /* ══ DEPOSITS ══ */
 async function loadDeposits(){
