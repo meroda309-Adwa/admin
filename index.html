@@ -917,16 +917,21 @@ function loadDashboardFallback(){
 }
 
 /* ══ CHARTS ══ */
-function initCharts(){
+async function initCharts(){
   var cfg={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a6480',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#5a6480',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}}};
   var days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   var months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  if(!charts.daily){charts.daily=new Chart(document.getElementById('chart-daily'),{type:'bar',data:{labels:days,datasets:[{data:[1200,980,1450,870,1600,2100,1800],backgroundColor:'rgba(255,107,53,0.7)',borderRadius:4}]},options:cfg});}
+
+  if(!charts.daily){
+    var dailyData = await apiFetch('/api/admin/chart/daily_revenue');
+    var dailyLabels = (dailyData && dailyData.success) ? dailyData.chart.labels : days;
+    var dailyValues = (dailyData && dailyData.success) ? dailyData.chart.values : [0,0,0,0,0,0,0];
+    charts.daily=new Chart(document.getElementById('chart-daily'),{type:'bar',data:{labels:dailyLabels,datasets:[{data:dailyValues,backgroundColor:'rgba(255,107,53,0.7)',borderRadius:4}]},options:cfg});
+  }
   if(!charts.users){charts.users=new Chart(document.getElementById('chart-users'),{type:'line',data:{labels:days,datasets:[{data:[120,145,160,178,195,210,228],borderColor:'#00e676',tension:.4,fill:true,backgroundColor:'rgba(0,230,118,0.08)'}]},options:cfg});}
   if(!charts.hourly){charts.hourly=new Chart(document.getElementById('chart-hourly'),{type:'line',data:{labels:['6am','8am','10am','12pm','2pm','4pm','6pm','8pm','10pm'],datasets:[{data:[5,12,18,28,22,30,45,38,20],borderColor:'#4fc3f7',tension:.4,fill:true,backgroundColor:'rgba(79,195,247,0.08)'}]},options:cfg});}
   if(!charts.monthly){charts.monthly=new Chart(document.getElementById('chart-monthly'),{type:'bar',data:{labels:months.slice(0,6),datasets:[{data:[8500,12000,9800,14500,11200,16800],backgroundColor:'rgba(179,136,255,0.7)',borderRadius:4}]},options:cfg});}
 }
-
 /* ══ DEPOSITS ══ */
 async function loadDeposits(){
   var data=await apiFetch('/api/admin/deposits');
