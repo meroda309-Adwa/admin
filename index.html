@@ -745,11 +745,7 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 
 <script>
 var API_BASE = 'https://adwa-last-test-gac4.onrender.com';
-var ADMIN_CREDENTIALS = {
-  'superadmin': {password:'admin123', role:'super'},
-  'admin1':     {password:'pass123',  role:'regular'},
-  'Fadmin22':   {password:'fadmin123', role:'finance'}
-};
+var adminToken = null;
 var currentUser=null, socket=null;
 var gameState10={called:new Set(),current:null,running:false,gameId:null,players:0,winners:[]};
 var gameState20={called:new Set(),current:null,running:false,gameId:null,players:0,winners:[]};
@@ -770,27 +766,37 @@ function toggleTheme(){
 if(localStorage.getItem('theme')==='light'){document.body.classList.add('light-theme');document.getElementById('theme-btn').innerHTML='🌙 Dark';}
 
 /* ══ LOGIN ══ */
-function doLogin(){
+async function doLogin(){
   var u=document.getElementById('login-user').value.trim();
   var p=document.getElementById('login-pass').value.trim();
   var errEl=document.getElementById('login-err');
   errEl.style.display='none';
-  var cred=ADMIN_CREDENTIALS[u];
-  if(cred&&cred.password===p){
-    currentUser={username:u,role:cred.role};
+  var result;
+  try{
+    var res=await fetch(API_BASE+'/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    result=await res.json();
+  }catch(e){ errEl.textContent='❌ Network error, please try again'; errEl.style.display='block'; return; }
+
+  if(result&&result.success){
+    adminToken=result.token;
+    currentUser={username:result.username,role:result.role};
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='flex';
-    
-    if(cred.role==='super') document.getElementById('role-badge').textContent='SUPER ADMIN';
-    else if(cred.role==='finance') document.getElementById('role-badge').textContent='FINANCE ADMIN';
+
+    if(result.role==='super') document.getElementById('role-badge').textContent='SUPER ADMIN';
+    else if(result.role==='finance') document.getElementById('role-badge').textContent='FINANCE ADMIN';
     else document.getElementById('role-badge').textContent='ADMIN';
-    
+
     applyRolePermissions();
     initApp();
-  } else { errEl.style.display='block'; }
+  } else {
+    errEl.textContent='❌ Invalid username or password';
+    errEl.style.display='block';
+  }
 }
 function doLogout(){
   currentUser=null;
+  adminToken=null;
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('login-user').value='';
@@ -898,8 +904,22 @@ function colFor(n){return Math.floor((n-1)/15);}
 function letterFor(n){return COLS[colFor(n)];}
 function toast(msg,type){type=type||'success';var icons={success:'✅',error:'❌',warning:'⚠️'};var el=document.createElement('div');el.className='toast '+type;el.innerHTML='<span class="toast-icon">'+icons[type]+'</span><span class="toast-msg">'+msg+'</span>';document.getElementById('toasts').appendChild(el);setTimeout(function(){el.remove();},4000);}
 function addLog(action,target,prev,next){adminLogs.unshift({admin:currentUser.username,action:action,target:target,prev:prev,next:next,time:new Date().toISOString()});}
-async function apiFetch(path,opts){try{var res=await fetch(API_BASE+path,opts||{});return await res.json();}catch(e){return{success:false,error:'Network error'};}}
-
+async function apiFetch(path,opts){
+  opts=opts||{};
+  opts.headers=opts.headers||{};
+  opts.headers['Authorization']='Bearer '+adminToken;
+  try{
+    var res=await fetch(API_BASE+path,opts);
+    if(res.status===401){
+      adminToken=null;currentUser=null;
+      document.getElementById('app').style.display='none';
+      document.getElementById('login-screen').style.display='flex';
+      toast('Session expired, please log in again','error');
+      return{success:false,error:'unauthorized'};
+    }
+    return await res.json();
+  }catch(e){return{success:false,error:'Network error'};}
+}
 /* ══ DASHBOARD ══ */
 async function loadDashboard(){
   var data=await apiFetch('/api/admin/dashboard');
