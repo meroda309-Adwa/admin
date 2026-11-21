@@ -358,10 +358,20 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
         </div>
       </div>
 
-      <!-- WITHDRAWALS -->
+            <!-- WITHDRAWALS -->
       <div class="page" id="page-withdrawals">
         <div class="page-title">Withdrawals</div>
         <div class="page-sub">Full user info — approve or reject withdrawal requests</div>
+        <div class="control-card" style="margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div>
+            <div class="sc-label">Customer Withdrawals</div>
+            <div id="wd-status"><span class="badge yellow">Loading...</span></div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button class="btn btn-green" id="wd-open-btn" onclick="setWithdrawStatus(true)">🟢 OPEN</button>
+            <button class="btn btn-red" id="wd-close-btn" onclick="setWithdrawStatus(false)">🔴 CLOSE</button>
+          </div>
+        </div>
         <div class="table-card">
           <div class="table-header">
             <div class="table-title">Withdrawal Requests</div>
@@ -987,6 +997,7 @@ async function rejectDeposit(id){if(!confirm('Reject this deposit?'))return;var 
 
 /* ══ WITHDRAWALS ══ */
 async function loadWithdrawals(){
+  loadWithdrawStatus();
   var data=await apiFetch('/api/admin/withdrawals');
   allWithdrawals=(data&&data.withdrawals)?data.withdrawals:generateMockWithdrawals();
   allWithdrawals.forEach(function(w){var u=allUsers.find(function(x){return x.user_id===w.user_id;});if(u){w._user=u;}});
@@ -1027,7 +1038,25 @@ async function rejectWithdrawal(id){
   }else{toast('❌ Failed! Backend missing /api/admin/reject_withdrawal','error');}
 }
 function openWithdrawalUserModal(withdrawalId){var w=allWithdrawals.find(function(x){return x.id===withdrawalId;});if(!w)return;var u=w._user||{user_id:w.user_id,first_name:w.username,phone:w.phone,main_balance:w.main_balance,play_balance:w.play_balance,games_played:w.games_played,games_won:w.games_won,referral_count:w.referral_count,is_agent:w.is_agent,status:'active'};if(!allUsers.find(function(x){return x.user_id===u.user_id;})) allUsers.push(u);openUserModal(u.user_id);}
-
+/* ══ WITHDRAWAL OPEN/CLOSE SWITCH ══ */
+async function loadWithdrawStatus(){
+  var d=await apiFetch('/api/admin/withdraw_status');
+  if(d&&d.success)renderWithdrawStatus(d.open);
+}
+function renderWithdrawStatus(open){
+  document.getElementById('wd-status').innerHTML=open?'<span class="badge green">🟢 OPEN</span>':'<span class="badge red">🔴 CLOSED</span>';
+  document.getElementById('wd-open-btn').disabled=open;
+  document.getElementById('wd-close-btn').disabled=!open;
+}
+async function setWithdrawStatus(open){
+  if(!confirm(open?'Open customer withdrawals?':'Close customer withdrawals? Customers will see the closed message.'))return;
+  var d=await apiFetch('/api/admin/set_withdraw_status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({open:open})});
+  if(d&&d.success){
+    renderWithdrawStatus(d.open);
+    toast(d.open?'🟢 Withdrawals OPEN':'🔴 Withdrawals CLOSED',d.open?'success':'warning');
+    addLog(d.open?'OPEN_WITHDRAWALS':'CLOSE_WITHDRAWALS','Customer withdrawals','','');
+  }else{toast('❌ Failed to change status','error');}
+}
 /* ══ REPORTS ══ */
 var currentReport=[],currentReportPeriod='daily';
 async function loadReport(period){currentReportPeriod=period;setText('report-title',period.charAt(0).toUpperCase()+period.slice(1)+' Report');var data=await apiFetch('/api/admin/reports?period='+period);var rows=(data&&data.rows)?data.rows:generateMockReport(period);currentReport=rows;var tD=0,tW=0,tG=0,tPa=0,tPr=0;rows.forEach(function(r){tD+=r.deposits||0;tW+=r.withdrawals||0;tG+=r.games||0;tPa+=r.payout||0;tPr+=r.profit||0;});document.getElementById('report-stats').innerHTML='<div class="stat-card green"><div class="sc-label">Total Deposits</div><div class="sc-val green">'+tD+' Br</div></div><div class="stat-card red"><div class="sc-label">Total Withdrawals</div><div class="sc-val red">'+tW+' Br</div></div><div class="stat-card blue"><div class="sc-label">Total Games</div><div class="sc-val blue">'+tG+'</div></div><div class="stat-card yellow"><div class="sc-label">Total Profit</div><div class="sc-val yellow">'+tPr+' Br</div></div>';document.getElementById('report-tbody').innerHTML=rows.map(function(r){return '<tr><td style="font-family:\'Space Mono\',monospace;">'+r.date+'</td><td style="color:var(--green);font-weight:700;">'+(r.deposits||0)+' Br</td><td style="color:var(--red);font-weight:700;">'+(r.withdrawals||0)+' Br</td><td>'+(r.games||0)+'</td><td style="color:var(--yellow);">'+(r.payout||0)+' Br</td><td style="color:var(--orange);font-weight:700;">'+(r.profit||0)+' Br</td></tr>';}).join('');}
