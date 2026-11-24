@@ -241,6 +241,8 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-he
 .period-tab{padding:8px 20px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;transition:all .2s;}
 .period-tab.active{background:var(--orange);color:#000;border-color:var(--orange);}
 .period-tab:hover{border-color:var(--orange);color:var(--orange);}
+.copy-phone{font-family:'Space Mono',monospace;font-weight:700;color:var(--blue);cursor:pointer;user-select:all;}
+.copy-phone:hover{background:rgba(79,195,247,0.12);}
 </style>
 </head>
 <body>
@@ -994,7 +996,23 @@ function renderDeposits(deps){
 }
 async function approveDeposit(id){var dep=allDeposits.find(function(d){return d.id===id;});if(!dep)return;await apiFetch('/api/admin/approve_deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deposit_id:id,user_id:dep.user_id,amount:dep.amount})});dep.status='completed';renderDeposits(allDeposits);toast('✅ Deposit #'+id+' approved','success');addLog('APPROVE_DEPOSIT','User '+dep.user_id,'pending','completed');}
 async function rejectDeposit(id){if(!confirm('Reject this deposit?'))return;var dep=allDeposits.find(function(d){return d.id===id;});if(!dep)return;dep.status='rejected';await apiFetch('/api/admin/reject_deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deposit_id:id})});renderDeposits(allDeposits);toast('Deposit #'+id+' rejected','error');addLog('REJECT_DEPOSIT','User '+dep.user_id,'pending','rejected');}
-
+/* ══ PHONE: show starting with 9 + one-click copy ══ */
+function phone9(p){
+  var d=String(p||'').replace(/\D/g,'');
+  if(d.indexOf('251')===0)d=d.slice(3);
+  return d.replace(/^0+/,'');
+}
+function copyPhone(el,num){
+  function ok(){toast('📋 Copied: '+num,'success');el.style.background='rgba(0,230,118,0.25)';setTimeout(function(){el.style.background='';},600);}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(num).then(ok,function(){fallbackCopy(num,ok);});
+  }else{fallbackCopy(num,ok);}
+}
+function fallbackCopy(num,done){
+  var t=document.createElement('textarea');t.value=num;document.body.appendChild(t);t.select();
+  try{document.execCommand('copy');done();}catch(e){toast('Copy failed','error');}
+  document.body.removeChild(t);
+}
 /* ══ WITHDRAWALS ══ */
 async function loadWithdrawals(){
   loadWithdrawStatus();
@@ -1014,7 +1032,7 @@ function renderWithdrawals(wits){
     var u=w._user||w;var sc=w.status==='approved'?'green':w.status==='pending'?'yellow':'red';
     var agentTag=u.is_agent?'<span class="badge purple" style="margin-left:4px;font-size:9px;">Agent</span>':'';
     var actions=w.status==='pending'?'<button class="btn btn-green btn-sm" onclick="approveWithdrawal('+w.id+')">✓</button> <button class="btn btn-red btn-sm" onclick="rejectWithdrawal('+w.id+')">✕</button>':'<span style="color:var(--muted);font-size:12px;">'+w.status+'</span>';
-    return '<tr><td style="font-family:\'Space Mono\',monospace;font-size:11px;">#'+w.id+'</td><td style="font-family:\'Space Mono\',monospace;font-size:11px;">'+w.user_id+'</td><td>'+(w.username||u.first_name||'—')+agentTag+'</td><td style="font-family:\'Space Mono\',monospace;">'+(w.phone||'—')+'</td><td style="color:var(--green);font-weight:700;">'+(u.main_balance||w.main_balance||'—')+' Br</td><td style="color:var(--blue);">'+(u.play_balance||w.play_balance||'—')+' Br</td><td>'+(u.games_played||w.games_played||'—')+'</td><td style="color:var(--yellow);">'+(u.games_won||w.games_won||'—')+'</td><td>'+(u.referral_count||w.referral_count||'—')+'</td><td style="font-weight:700;color:var(--red);">'+w.amount+' Br</td><td>'+w.method+'</td><td><span class="badge '+sc+'">'+w.status+'</span></td><td style="font-size:11px;color:var(--muted);">'+(w.time||'').split('T')[0]+'</td><td style="display:flex;gap:4px;align-items:center;">'+actions+' <button class="btn btn-ghost btn-sm" onclick="openWithdrawalUserModal('+w.id+')">👤</button></td></tr>';
+    return '<tr><td style="font-family:\'Space Mono\',monospace;font-size:11px;">#'+w.id+\'Space Mono\',monospace;font-size:11px;">'+w.user_id+'</td><td>'+(w.username||u.first_name||'—')+agentTag+'</td><td class="copy-phone" title="Click to copy" onclick="copyPhone(this,\''+phone9(w.phone)+'\')">'+(phone9(w.phone)||'—')+'</td><td style="color:var(--green);font-weight:700;">'+(u.main_balance||w.main_balance||'—')+' Br</td><td style="color:var(--blue);">'+(u.play_balance||w.play_balance||'—')+' Br</td><td>'+(u.games_played||w.games_played||'—')+'</td><td style="color:var(--yellow);">'+(u.games_won||w.games_won||'—')+'</td><td>'+(u.referral_count||w.referral_count||'—')+'</td><td style="font-weight:700;color:var(--red);">'+w.amount+' Br</td><td>'+w.method+'</td><td><span class="badge '+sc+'">'+w.status+'</span></td><td style="font-size:11px;color:var(--muted);">'+(w.time||'').split('T')[0]+'</td><td style="display:flex;gap:4px;align-items:center;">'+actions+' <button class="btn btn-ghost btn-sm" onclick="openWithdrawalUserModal('+w.id+')">👤</button></td></tr>';
   }).join('');
 }
 async function approveWithdrawal(id){
