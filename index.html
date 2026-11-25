@@ -917,6 +917,12 @@ function navTo(page){
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function cleanRows(rows){return (rows||[]).map(function(r){var o={};for(var k in r){o[k]=(typeof r[k]==='string')?esc(r[k]):r[k];}return o;});}
 function nv(a,b){return (a!==undefined&&a!==null&&a!=='')?a:((b!==undefined&&b!==null&&b!=='')?b:'—');}
+function fmt12(t){
+  var m=/^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(t||''));
+  if(!m)return t?String(t):'—';
+  var hr=parseInt(m[2],10),ap=hr>=12?'PM':'AM';hr=hr%12;if(hr===0)hr=12;
+  return m[1]+' '+hr+':'+m[3]+(m[4]?':'+m[4]:'')+' '+ap;
+}
 function setActiveTab(containerId,period){document.querySelectorAll('#'+containerId+' .period-tab').forEach(function(b){b.classList.toggle('active',b.textContent.trim().toLowerCase()===period);});}
 function showLoadError(id,cols){var el=document.getElementById(id);if(el)el.innerHTML='<tr><td colspan="'+cols+'" style="text-align:center;padding:40px;color:var(--red);">⚠️ Could not load data from the server. Check the connection and press Refresh.</td></tr>';}
 function setText(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
@@ -1026,7 +1032,7 @@ async function loadWithdrawals(){
   if(!data||!data.success){showLoadError('wit-tbody',14);return;}
   allWithdrawals=cleanRows(data.withdrawals||[]);
   allWithdrawals.forEach(function(w){var u=allUsers.find(function(x){return x.user_id===w.user_id;});if(u){w._user=u;}});
-  renderWithdrawals(allWithdrawals);
+  filterWithdrawals();
   var pending=allWithdrawals.filter(function(w){return w.status==='pending';}).length;
   setText('badge-withdrawals',pending);setText('d-pend-wit',pending);
 }
@@ -1039,7 +1045,7 @@ function renderWithdrawals(wits){
     var u=w._user||w;var sc=(w.status==='approved'||w.status==='completed')?'green':w.status==='pending'?'yellow':'red';
     var agentTag=u.is_agent?'<span class="badge purple" style="margin-left:4px;font-size:9px;">Agent</span>':'';
     var actions=w.status==='pending'?'<button class="btn btn-green btn-sm" onclick="approveWithdrawal('+w.id+')">✓</button> <button class="btn btn-red btn-sm" onclick="rejectWithdrawal('+w.id+')">✕</button>':'<span style="color:var(--muted);font-size:12px;">'+w.status+'</span>';
-    return '<tr><td style="font-family:\'Space Mono\',monospace;font-size:11px;">#'+w.id+'</td><td style="font-family:\'Space Mono\',monospace;font-size:11px;">'+w.user_id+'</td><td>'+(w.username||u.first_name||'—')+agentTag+'</td><td class="copy-phone" title="Click to copy" onclick="copyPhone(this,\''+phone9(w.phone)+'\')">'+(phone9(w.phone)||'—')+'</td><td style="color:var(--green);font-weight:700;">'+nv(u.main_balance,w.main_balance)+' Br</td><td style="color:var(--blue);">'+nv(u.play_balance,w.play_balance)+' Br</td><td>'+nv(u.games_played,w.games_played)+'</td><td style="color:var(--yellow);">'+nv(u.games_won,w.games_won)+'</td><td>'+nv(u.referral_count,w.referral_count)+'</td><td style="font-weight:700;color:var(--red);">'+w.amount+' Br</td><td>'+w.method+'</td><td><span class="badge '+sc+'">'+w.status+'</span></td><td style="font-size:11px;color:var(--muted);">'+(w.time||'').split('T')[0]+'</td><td style="display:flex;gap:4px;align-items:center;">'+actions+' <button class="btn btn-ghost btn-sm" onclick="openWithdrawalUserModal('+w.id+')">👤</button></td></tr>';
+    return '<tr><td style="font-family:\'Space Mono\',monospace;font-size:11px;">#'+w.id+'</td><td style="font-family:\'Space Mono\',monospace;font-size:11px;">'+w.user_id+'</td><td>'+(w.username||u.first_name||'—')+agentTag+'</td><td class="copy-phone" title="Click to copy" onclick="copyPhone(this,\''+phone9(w.phone)+'\')">'+(phone9(w.phone)||'—')+'</td><td style="color:var(--green);font-weight:700;">'+nv(w.main_balance,u.main_balance)+' Br</td><td style="color:var(--blue);">'+nv(w.play_balance,u.play_balance)+' Br</td><td>'+nv(w.games_played,u.games_played)+'</td><td style="color:var(--red);">'+nv(w.games_won,u.games_won)+'</td><td>'+nv(w.referral_count,u.referral_count)+'</td><td style="font-weight:700;color:var(--red);">'+w.amount+' Br</td><td>'+w.method+'</td><td><span class="badge '+sc+'">'+w.status+'</span></td><td style="font-size:11px;color:var(--muted);">'+fmt12(w.time)+'</td><td style="display:flex;gap:4px;align-items:center;">'+actions+' <button class="btn btn-ghost btn-sm" onclick="openWithdrawalUserModal('+w.id+')">👤</button></td></tr>';
   }).join('');
 }
 async function approveWithdrawal(id){
@@ -1052,14 +1058,14 @@ async function approveWithdrawal(id){
     if(u) u.main_balance = Math.max(0, (u.main_balance||0) - w.amount);
     var wu = w._user; if(wu) wu.main_balance = Math.max(0, (wu.main_balance||0) - w.amount);
     
-    renderWithdrawals(allWithdrawals);toast('✅ Withdrawal #'+id+' approved','success');addLog('APPROVE_WITHDRAWAL','User '+w.user_id,'pending','approved');
+    filterWithdrawals();loadWithdrawals();toast('✅ Withdrawal #'+id+' approved','success');addLog('APPROVE_WITHDRAWAL','User '+w.user_id,'pending','approved');
   }else{toast('❌ Failed! Backend missing /api/admin/approve_withdrawal','error');}
 }
 async function rejectWithdrawal(id){
   if(!confirm('Reject this withdrawal?'))return;var w=allWithdrawals.find(function(x){return x.id===id;});if(!w)return;
   var result=await apiFetch('/api/admin/reject_withdrawal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({withdrawal_id:id,user_id:w.user_id,amount:w.amount})});
   if(result&&result.success){
-    w.status='rejected';renderWithdrawals(allWithdrawals);toast('Withdrawal rejected','error');addLog('REJECT_WITHDRAWAL','User '+w.user_id,'pending','rejected');
+    w.status='rejected';filterWithdrawals();loadWithdrawals();toast('Withdrawal rejected','error');addLog('REJECT_WITHDRAWAL','User '+w.user_id,'pending','rejected');
   }else{toast('❌ Failed! Backend missing /api/admin/reject_withdrawal','error');}
 }
 function openWithdrawalUserModal(withdrawalId){var w=allWithdrawals.find(function(x){return x.id===withdrawalId;});if(!w)return;var u=w._user||{user_id:w.user_id,first_name:w.username,phone:w.phone,main_balance:w.main_balance,play_balance:w.play_balance,games_played:w.games_played,games_won:w.games_won,referral_count:w.referral_count,is_agent:w.is_agent,status:'active'};if(!allUsers.find(function(x){return x.user_id===u.user_id;})) allUsers.push(u);openUserModal(u.user_id);}
