@@ -1034,6 +1034,13 @@ async function loadWithdrawals(){
   var data=await apiFetch('/api/admin/withdrawals');
   if(!data||!data.success){showLoadError('wit-tbody',14);return;}
   allWithdrawals=cleanRows(data.withdrawals||[]);
+  // NEW: give each withdrawal a fixed counter number (oldest = #1, then 2, 3, 4, 5...)
+  allWithdrawals.slice().sort(function(a,b){
+    var ta=String(a.time||''), tb=String(b.time||'');
+    if(ta<tb) return -1;
+    if(ta>tb) return 1;
+    return Number(a.id)-Number(b.id);
+  }).forEach(function(w,i){ w.seq=i+1; });
   allWithdrawals.forEach(function(w){var u=allUsers.find(function(x){return x.user_id===w.user_id;});if(u){w._user=u;}});
   filterWithdrawals();
   var pending=allWithdrawals.filter(function(w){return w.status==='pending';}).length;
@@ -1048,7 +1055,7 @@ function renderWithdrawals(wits){
     var u=w._user||w;var sc=(w.status==='approved'||w.status==='completed')?'green':w.status==='pending'?'yellow':'red';
     var agentTag=u.is_agent?'<span class="badge purple" style="margin-left:4px;font-size:9px;">Agent</span>':'';
     var actions=w.status==='pending'?'<button class="btn btn-green btn-sm" onclick="approveWithdrawal('+w.id+')">✓</button> <button class="btn btn-red btn-sm" onclick="rejectWithdrawal('+w.id+')">✕</button>':'<span style="color:var(--muted);font-size:12px;">'+w.status+'</span>';
-    return '<tr><td style="font-family:\'Space Mono\',monospace;font-size:11px;">#'+w.id+'</td><td style="font-family:\'Space Mono\',monospace;font-size:11px;">'+w.user_id+'</td><td>'+(w.username||u.first_name||'—')+agentTag+'</td><td class="copy-phone" title="Click to copy" onclick="copyPhone(this,\''+phone9(w.phone)+'\')">'+(phone9(w.phone)||'—')+'</td><td style="color:var(--green);font-weight:700;">'+nv(w.main_balance,u.main_balance)+' Br</td><td style="color:var(--blue);">'+nv(w.play_balance,u.play_balance)+' Br</td><td>'+nv(w.games_played,u.games_played)+'</td><td style="color:var(--red);">'+nv(w.games_won,u.games_won)+'</td><td>'+nv(w.referral_count,u.referral_count)+'</td><td style="font-weight:700;color:var(--red);">'+w.amount+' Br</td><td>'+w.method+'</td><td><span class="badge '+sc+'">'+w.status+'</span></td><td style="font-size:11px;color:var(--muted);">'+fmt12(w.time)+'</td><td style="display:flex;gap:4px;align-items:center;">'+actions+' <button class="btn btn-ghost btn-sm" onclick="openWithdrawalUserModal('+w.id+')">👤</button></td></tr>';
+    return '<tr><td style="font-family:\'Space Mono\',monospace;font-size:11px;">#'+(w.seq||w.id)+'</td><td style="font-family:\'Space Mono\',monospace;font-size:11px;">'+w.user_id+'</td><td>'+(w.username||u.first_name||'—')+agentTag+'</td><td class="copy-phone" title="Click to copy" onclick="copyPhone(this,\''+phone9(w.phone)+'\')">'+(phone9(w.phone)||'—')+'</td><td style="color:var(--green);font-weight:700;">'+nv(w.main_balance,u.main_balance)+' Br</td><td style="color:var(--blue);">'+nv(w.play_balance,u.play_balance)+' Br</td><td>'+nv(w.games_played,u.games_played)+'</td><td style="color:var(--red);">'+nv(w.games_won,u.games_won)+'</td><td>'+nv(w.referral_count,u.referral_count)+'</td><td style="font-weight:700;color:var(--red);">'+w.amount+' Br</td><td>'+w.method+'</td><td><span class="badge '+sc+'">'+w.status+'</span></td><td style="font-size:11px;color:var(--muted);">'+fmt12(w.time)+'</td><td style="display:flex;gap:4px;align-items:center;">'+actions+' <button class="btn btn-ghost btn-sm" onclick="openWithdrawalUserModal('+w.id+')">👤</button></td></tr>';
   }).join('');
 }
 async function approveWithdrawal(id){
